@@ -49,6 +49,7 @@ See LICENSE file for details
 import argparse
 import binascii
 import logging
+import math
 import os
 import random
 import select
@@ -69,6 +70,7 @@ if sys.platform == "win32":
 # Constants to convert between python timestamps and NTP 8B binary format [RFC1305]
 TIMEOFFSET = 2208988800  # Time Difference: 1-JAN-1900 to 1-JAN-1970
 ALLBITS = 0xFFFFFFFF  # To calculate 32bit fraction of the second
+MIN_INTERVAL_MS = 0.05  # 50us: default Linux timer slack, so shorter waits can't be honoured
 
 # Module-level logger - configured in main()
 log = logging.getLogger("twampy")
@@ -91,7 +93,23 @@ def time_ntp2py(data):
 
 
 def zeros(nbr):
-    return struct.pack(f"!{nbr}B", *[0 for x in range(nbr)])
+    # bytes() instead of packing a per-packet list: called on every probe/reflection
+    return bytes(nbr)
+
+
+def interval_ms(value):
+    """
+    argparse type for --interval: milliseconds, fractions allowed, >= MIN_INTERVAL_MS
+    """
+    try:
+        ms = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"invalid interval '{value}': expected milliseconds, e.g. 10 or 0.05"
+        ) from None
+    if not math.isfinite(ms) or ms < MIN_INTERVAL_MS:
+        raise argparse.ArgumentTypeError(f"interval '{value}' out of range: minimum is {MIN_INTERVAL_MS}ms (50us)")
+    return ms
 
 
 def dp(ms):
@@ -899,14 +917,18 @@ def main():
     group = p_sender.add_argument_group("TWL sender options")
     group.add_argument("far_end", nargs="?", metavar="remote-ip:port", default="127.0.0.1:20001")
     group.add_argument("near_end", nargs="?", metavar="local-ip:port", default=":20000")
-    group.add_argument("-i", "--interval", metavar="msec", default=100, type=int, help="[100,1000]")
+    group.add_argument(
+        "-i", "--interval", metavar="msec", default=100, type=interval_ms, help="[0.05..] fractions allowed"
+    )
     group.add_argument("-c", "--count", metavar="packets", default=100, type=int, help="[1..9999]")
 
     p_control = subparsers.add_parser("controller", help="TWAMP controller", parents=[debug_parser, ipopt_parser])
     group = p_control.add_argument_group("TWAMP controller options")
     group.add_argument("far_end", nargs="?", metavar="remote-ip:port", default="127.0.0.1:20001")
     group.add_argument("near_end", nargs="?", metavar="local-ip:port", default=":20000")
-    group.add_argument("-i", "--interval", metavar="msec", default=100, type=int, help="[100,1000]")
+    group.add_argument(
+        "-i", "--interval", metavar="msec", default=100, type=interval_ms, help="[0.05..] fractions allowed"
+    )
     group.add_argument("-c", "--count", metavar="packets", default=100, type=int, help="[1..9999]")
 
     p_ctclient = subparsers.add_parser(

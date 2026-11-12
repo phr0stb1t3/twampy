@@ -139,3 +139,56 @@ def test_sender_do_not_fragment_starts():
         except subprocess.TimeoutExpired:
             responder.kill()
             responder.wait()
+
+
+def test_sender_sub_millisecond_interval():
+    """
+    Sender accepts --interval 0.05 (50us) and paces faster than the old 1ms floor.
+
+    2000 packets at 50us is 0.1s nominal; at the old 1ms minimum it would take >= 2s.
+    """
+    responder = subprocess.Popen(
+        [sys.executable, "-m", "twampy", "responder", "127.0.0.1:40865"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    time.sleep(2)
+    if responder.poll() is not None:
+        stdout, stderr = responder.communicate()
+        raise AssertionError(f"Responder failed to start:\nSTDOUT: {stdout}\nSTDERR: {stderr}")
+    try:
+        start = time.monotonic()
+        sender = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "twampy",
+                "sender",
+                "127.0.0.1:40865",
+                ":40866",
+                "--count",
+                "2000",
+                "--interval",
+                "0.05",
+                "--padding",
+                "0",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        elapsed = time.monotonic() - start
+        assert sender.returncode == 0, f"Sender failed:\nSTDOUT: {sender.stdout}\nSTDERR: {sender.stderr}"
+        assert re.search(r"Roundtrip:", sender.stdout + sender.stderr), sender.stdout + sender.stderr
+        assert elapsed < 1.5, f"2000 packets at 0.05ms took {elapsed:.2f}s, not faster than the old 1ms floor"
+    finally:
+        if sys.platform == "win32":
+            responder.terminate()
+        else:
+            responder.send_signal(signal.SIGINT)
+        try:
+            responder.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            responder.kill()
+            responder.wait()

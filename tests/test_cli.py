@@ -95,3 +95,20 @@ def test_no_arguments():
     # Should either show help (exit 0) or error (exit non-zero)
     # Either is acceptable
     assert "usage" in result.stdout.lower() or "usage" in result.stderr.lower()
+
+
+def test_interval_rejects_below_50us():
+    """--interval below 0.05ms (50us) is rejected for sender and controller"""
+    for cmd in ("sender", "controller"):
+        for value in ("0.049", "0", "-1", "0.01"):
+            result = run_twampy(cmd, "--interval", value)
+            assert result.returncode != 0, f"{cmd} --interval {value} should fail"
+            assert "minimum" in result.stderr.lower(), result.stderr
+
+
+def test_interval_rejects_non_numeric():
+    """--interval must be a finite number of milliseconds"""
+    for value in ("abc", "nan", "inf", "", "1ms"):
+        result = run_twampy("sender", "--interval", value)
+        assert result.returncode != 0, f"--interval {value!r} should fail"
+        assert "interval" in result.stderr.lower(), result.stderr

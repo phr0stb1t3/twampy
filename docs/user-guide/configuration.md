@@ -170,9 +170,11 @@ twampy sender 192.168.1.100 --count 1000
 
 Time between consecutive packets.
 
-- **Range**: 1-10000 milliseconds
-- **Default**: 1000 ms (1 second)
-- **Note**: Lower values = higher packet rate
+- **Range**: 0.05 ms (50 µs) minimum; fractions allowed, e.g. `0.5`
+- **Default**: 100 ms
+- **Note**: Lower values = higher packet rate. Below about 0.5 ms, the default
+  Linux timer slack (50 µs) and scheduler latency make the gaps between packets
+  uneven; the average rate holds. Run the sender under `chrt -f` to remove timer slack.
 
 Packet rate examples:
 
@@ -182,6 +184,7 @@ Packet rate examples:
 | 100           | 10             | Standard testing |
 | 10            | 100            | High-frequency testing |
 | 1             | 1000           | Stress testing |
+| 0.1           | 10000          | Sub-millisecond stress testing |
 
 Example:
 ```bash
