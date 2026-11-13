@@ -4,6 +4,34 @@
 
 twampy is a network measurement tool for latency, jitter, and packet loss testing. Originally developed to validate Nokia SR OS and SR Linux TWAMP implementations, it provides a standards-compliant implementation of the Two-Way Active Measurement Protocol and Simple Two-Way Active Measurement Protocol.
 
+## About this fork
+
+This repository is an unofficial fork of [nokia/twampy](https://github.com/nokia/twampy).
+Nokia does not maintain, support or endorse this fork.
+Report problems with the changes below in this repository, not upstream.
+
+The fork starts from upstream release 1.3.2 (commit `885b986`).
+The table lists every change that this fork adds to upstream.
+
+| Change | What it does | Commit | Upstream status |
+|--------|--------------|--------|-----------------|
+| Sender busy-wait fix | The session sender blocks in `select()` until the next probe is due. Upstream spins between the reply and the next probe and uses one full CPU core per sender session. In a loopback test, CPU time for 10 probes at 1 s dropped from 9.06 s to 0.07 s. | `bf44790` | Proposed as [nokia/twampy#19](https://github.com/nokia/twampy/pull/19) |
+| Sub-millisecond send interval | `--interval` (sender and controller) accepts fractional milliseconds, with a minimum of 0.05 ms (50 µs). It rejects 0, negative values, `nan`, `inf` and text. Upstream accepts whole milliseconds only (minimum 1 ms) and accepts 0 and negative values. | `a094510` | Fork only |
+| Padding generation | `zeros()` returns `bytes(n)` instead of packing a new list for each packet. The bytes on the wire do not change. | `a094510` | Fork only |
+| Documentation | The configuration guide states the correct default interval (100 ms, not 1000 ms) and the new range. The README has this section, and `LICENSE` has a modification notice. | `a094510` and later | Fork only |
+
+Below about 0.5 ms, the default Linux timer slack (50 µs) and scheduler latency make the gaps between packets uneven.
+The average rate does not change.
+To remove timer slack, run the sender with a real-time policy, for example `chrt -f 50`.
+
+To see the full difference from upstream:
+
+```bash
+git remote add upstream https://github.com/nokia/twampy.git
+git fetch upstream
+git diff upstream/master master
+```
+
 ## Features
 
 - ✅ **Multiple Operation Modes** - Controller, Control Client, Session Sender, Reflector
@@ -19,7 +47,7 @@ twampy is a network measurement tool for latency, jitter, and packet loss testin
 
 ```bash
 # Clone and install
-git clone https://github.com/nokia/twampy
+git clone https://github.com/phr0stb1t3/twampy
 cd twampy
 pip install -e .
 ```
@@ -99,10 +127,6 @@ twampy responder :20000
 - Unauthenticated mode only (no encryption/authentication)
 
 
-## License
-
-This project is licensed under the BSD-3-Clause license - see the [LICENSE](https://github.com/nokia/twampy/blob/master/LICENSE).
-
 twampy can be imported and used in Python programs:
 
 ```python
@@ -119,9 +143,15 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 Licensed under the BSD-3-Clause License. See [LICENSE](LICENSE) for details.
 
+The original code is copyright Nokia. The fork changes listed in [About this fork](#about-this-fork) are copyright phr0stb1t3 and use the same BSD-3-Clause license.
+The Nokia copyright notice, the license conditions and the disclaimer are unchanged.
+The use of the Nokia name in this README identifies the upstream project only and is not an endorsement.
+
 ## Author
 
-**Sven Wisotzky** - Nokia
+**Sven Wisotzky** - Nokia (original author)
+
+Fork changes: phr0stb1t3
 
 ## References
 

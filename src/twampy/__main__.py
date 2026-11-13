@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2026 Nokia
+# Modifications copyright (c) 2026 phr0stb1t3 (fork: https://github.com/phr0stb1t3/twampy)
 
 ##############################################################################
 #                                                                            #
